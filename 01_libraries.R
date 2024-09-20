@@ -1,0 +1,32 @@
+# Import libraries ----
+
+library(FactoMineR)
+library(factoextra)
+library(corrplot)
+library(gplots)
+library(gridExtra)
+library(Hmisc)
+library(knitr)
+library(tidyverse) # loads dplyr, forcats, lubridate, purrr, readr, stringr, tibble, tidyr
+library(ggdark)
+library(ggrepel)
+library(questionr)
+library(explor)
+library(svglite)
+library(rainette)
+library(quanteda)
+library(quanteda.textstats)
+library(quanteda.textmodels)
+library(quanteda.textplots)
+library(readtext)
+library(reticulate)
+library(shiny)
+library(udpipe)
+library(spacyr)
+library(stopwords)
+library(data.table)
+library(collapse)
+library(RColorBrewer)
+library(webshot2)
+
+# Load data ----

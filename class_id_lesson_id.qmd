@@ -1,0 +1,979 @@
+---
+title: "class_ID, lesson_ID --- teachers’ classroom discourse transcript"
+author: "Gabriel Parriaux"
+date: last-modified
+version: 3.0
+toc: true
+toc-depth: 4
+number-sections: true
+# bibliography: references.bib
+# csl: apa.csl
+lightbox: auto
+format:
+  bookup-html+dark:
+    toc: true
+    toc-depth: 4
+    embed-resources: true
+    fig-width: 18
+    fig-height: 12
+  html:
+    code-fold: true
+    df-print: kable
+    embed-resources: true
+    number-offset: 0
+    fig-width: 18
+    fig-height: 12
+  pdf:
+    header-includes:
+    - \usepackage{pdflscape}
+    - \newcommand{\blandscape}{\begin{landscape}}
+    - \newcommand{\elandscape}{\end{landscape}}
+    colorlinks: true
+    prefer-html: false
+    number-offset: 1
+    fig-width: 12
+    fig-height: 8
+    lot: true
+    lof: true
+    tbl-colwidths: auto
+    df-print: kable
+---
+
+```{r}
+#| label: import-libraries
+#| include: false
+
+# load libraries
+source("01_libraries.R", local = knitr::knit_global())
+
+```
+
+```{r}
+#| label: import-initial-variables
+#| include: false
+
+# load libraries
+source("01bis_import_initial_variables.R", local = knitr::knit_global())
+
+```
+
+```{r}
+#| label: define-initial-variables
+#| include: false
+
+# project folder
+data_dir <- getwd()
+
+## teachers' variables
+
+## teachers' ids
+first_teacher <- teachers$teacher_id[5]
+second_teacher <- teachers$teacher_id[6]
+
+## teachers' names 
+first_teacher_name <- teachers %>% filter(teacher_id == first_teacher) %>% select(teacher_name) %>% as.character()
+second_teacher_name <- teachers %>% filter(teacher_id == second_teacher) %>% select(teacher_name) %>% as.character()
+
+# In teachers df, keep only the rows corresponding to the teachers
+lesson_teachers_for_display <- teachers[teachers$teacher_id %in% c(first_teacher, second_teacher),]
+# remove teacher_name column
+lesson_teachers_for_display <- lesson_teachers_for_display %>% select(-teacher_name)
+# transpose df
+lesson_teachers_for_display <- t(lesson_teachers_for_display)
+
+# classes' variables
+
+## class_id
+this_class_id <- classes$class_id[5]
+
+## pupils_number
+pupils_number <- classes %>% filter(class_id == this_class_id) %>% select(pupils_number) %>% as.numeric()
+
+## school_level
+school_level <- classes %>% filter(class_id == this_class_id) %>% select(school_level) %>% as.character()
+
+## in classes df, keep only the row corresponding to the class
+lesson_class_for_display <- classes[classes$class_id == this_class_id,]
+
+# lesson's variables
+
+## lesson_id
+this_lesson_id <- lessons$lesson_id[9]
+
+## lesson_topic
+lesson_topic <- lessons %>% filter(lesson_id == this_lesson_id) %>% select(lesson_topic) %>% as.character()
+
+## programming_type
+programming_type <- lessons %>% filter(lesson_id == this_lesson_id) %>% select(programming_type) %>% as.character()
+
+## number of teachers
+number_of_teachers <- lessons %>% filter(lesson_id == this_lesson_id) %>% select(number_of_teachers) %>% as.numeric()
+
+## number_of_lesson_clusters (for Reinert)
+number_of_lesson_clusters <- 8
+
+## in lessons df, keep only the row corresponding to the lesson
+lesson_lesson <- lessons[lessons$lesson_id == this_lesson_id,]
+
+## for display
+lesson_lesson_for_display <- lesson_lesson
+
+# discourses' variables
+
+## discourse_id
+first_discourse_id <- discourses$discourse_id[13]
+second_discourse_id <- discourses$discourse_id[14]
+
+## nth_time_teacher_taught_lesson
+nth_time_first_teacher_taught_lesson <- discourses %>% filter(discourse_id == first_discourse_id) %>% select(nth_time_teacher_taught_lesson) %>% as.numeric()
+nth_time_second_teacher_taught_lesson <- discourses %>% filter(discourse_id == second_discourse_id) %>% select(nth_time_teacher_taught_lesson) %>% as.numeric()
+
+## in discourses df, keep only the rows corresponding to the two discourses
+lesson_discourses <- discourses[discourses$discourse_id %in% c(first_discourse_id, second_discourse_id),]
+
+## for display
+lesson_discourses_for_display <- lesson_discourses
+
+```
+
+```{r}
+#| label: flags
+#| include: false
+
+## there is a pause between the two lessons that has to be removed (toggle TRUE of FALSE depending the situation)
+pause_yes <- TRUE
+
+## define the pause starting time and duration (not evaluated if pause_yes is FALSE)
+if (pause_yes) {
+  # store pause starting time in a variable (have to estimate it manually in first_teacher_complete)
+  pause_start_time <- period_to_seconds(hms("00:44:00"))
+
+  # store pause duration (have to estimate it manually in first_teacher_complete)
+  pause_duration_in_s <- 18*60
+}
+
+# interpretation of clusters done
+
+## the clusters have been interpreted and renamed
+clusters_renamed_yes <- FALSE
+
+```
+
+```{r}
+#| label: import-teachers-transcript-comments-variables
+#| include: false
+
+# do the import
+source("02_import.R", local = knitr::knit_global())
+
+```
+
+```{r}
+#| label: display-errors
+#| output: false
+#| echo: false
+
+# first_teacher
+check_1
+
+# second_teacher
+check_2
+
+```
+
+```{r}
+#| label: first-teacher-pretreatment
+#| output: true
+#| echo: false
+
+# remove rows that are not verified transcriptions of first_teacher
+first_teacher_disc_df <- subset(first_teacher_transcript, Speaker == first_teacher_name & Status == "verified")
+
+# Here, necessary to inspect first_teacher_reduced to detect any strange lines (time with 00:00:00.000, or a extraordinary long duration for example)
+# manually correct errors in timecode due to microphone bugs / normally not necessary
+first_teacher_disc_df[369,1] <- "01:44:12.000"
+first_teacher_disc_df[369,3] <- "00:00:02.000"
+# first_teacher_disc_df[1,3] <- "00:00:05.000"
+# first_teacher_disc_df[2,1] <- "00:07:51.000"
+# manually correct a value that is 00:00:00.000 ?!?
+# first_teacher_disc_df["402", "In"] <- "00:45:02.000"
+# first_teacher_disc_df["402", "Duration"] <- "00:00:02.488"
+
+# remove columns not useful
+first_teacher_disc_df <- subset(first_teacher_disc_df, select = -c(Out, Status))
+
+# rename column Speaker into teacher_id
+colnames(first_teacher_disc_df)[colnames(first_teacher_disc_df) == "Speaker"] <- "teacher_id"
+
+# rename column Text into statement_text
+colnames(first_teacher_disc_df)[colnames(first_teacher_disc_df) == "Text"] <- "statement_text"
+
+# rename column In into timestamp
+colnames(first_teacher_disc_df)[colnames(first_teacher_disc_df) == "In"] <- "timestamp"
+
+# anonymize teacher's name
+first_teacher_disc_df$teacher_id[first_teacher_disc_df$teacher_id == first_teacher_name] <- first_teacher
+
+# convert duration in seconds
+# create function
+conv_to_sec <- function(x) {
+  period_to_seconds(hms(x))
+}
+# apply function to data.frame Duration column
+first_teacher_disc_df[c('Duration')] <- lapply(first_teacher_disc_df[c('Duration')], conv_to_sec)
+
+# remove unnecessary single quote at beginning of certain text cells
+first_teacher_disc_df$statement_text <- str_remove(first_teacher_disc_df$statement_text, "^'")
+
+# anonymize the name of the other teacher in the discourse of first_teacher
+first_teacher_disc_df <- first_teacher_disc_df %>%
+      mutate_at("statement_text", str_replace_all, second_teacher_name, paste0(second_teacher, "_name"))
+
+# anonymize the name of the first teacher in its own discourse (when he/she presents herself…)
+first_teacher_disc_df <- first_teacher_disc_df %>%
+      mutate_at("statement_text", str_replace_all, first_teacher_name, paste0(first_teacher, "_name"))
+
+```
+
+```{r}
+#| label: first-teacher-comments-pretreatment-and-merge
+#| output: true
+#| echo: false
+
+# delete rows with comments made by transcripters and that do not match my way of doing
+first_teacher_comments <- first_teacher_comments %>%
+  filter(!grepl("^name.surname@domain.org:*", Comment_1))
+
+# manually correct errors in timecode / normally not necessary
+first_teacher_comments[27,1] <- "00:33:19.996"
+first_teacher_comments[40,1] <- "00:40:34.064"
+first_teacher_comments[47,1] <- "01:03:34.220"
+first_teacher_comments[51,1] <- "01:08:18.470"
+first_teacher_comments[60,1] <- "01:14:06.210"
+
+# rename In column into timestamp
+colnames(first_teacher_comments)[colnames(first_teacher_comments) == "In"] <- "timestamp"
+
+# merge teacher and comments
+first_teacher_disc_df <- merge(first_teacher_disc_df, first_teacher_comments, by.x = "timestamp", by.y = "timestamp", all = TRUE)
+
+```
+
+```{r}
+#| label: import-first-teacher-columns-management-discourse-tables
+#| include: false
+
+# do the import
+source("03_first_teacher_discourse_tables.R", local = knitr::knit_global())
+
+```
+
+```{r}
+#| label: second-teacher-pretreatment
+#| output: true
+#| echo: false
+
+# remove rows that are not verified transcriptions of second_teacher
+second_teacher_disc_df <- subset(second_teacher_transcript, Speaker == second_teacher_name & Status == "verified")
+
+# remove columns not useful
+second_teacher_disc_df <- subset(second_teacher_disc_df, select = -c(Out, Status))
+
+# rename column Speaker into teacher_id
+colnames(second_teacher_disc_df)[colnames(second_teacher_disc_df) == "Speaker"] <- "teacher_id"
+
+# rename column Text into statement_text
+colnames(second_teacher_disc_df)[colnames(second_teacher_disc_df) == "Text"] <- "statement_text"
+
+# rename column In into timestamp
+colnames(second_teacher_disc_df)[colnames(second_teacher_disc_df) == "In"] <- "timestamp"
+
+# anonymize teacher's name
+second_teacher_disc_df$teacher_id[second_teacher_disc_df$teacher_id == second_teacher_name] <- second_teacher
+
+# convert duration in seconds
+# function already defined for first_teacher
+# apply function to data.frame Duration column
+second_teacher_disc_df[c('Duration')] <- lapply(second_teacher_disc_df[c('Duration')], conv_to_sec)
+
+# remove unnecessary single quote at beginning of certain text cells
+second_teacher_disc_df$statement_text <- str_remove(second_teacher_disc_df$statement_text, "^'")
+
+# anonymize the name of the other teacher in the discourse of second_teacher
+second_teacher_disc_df <- second_teacher_disc_df %>%
+      mutate_at("statement_text", str_replace_all, first_teacher_name, paste0(first_teacher, "_name"))
+
+# anonymize the name of the second teacher in its own discourse (when he/she presents herself…)
+second_teacher_disc_df <- second_teacher_disc_df %>%
+      mutate_at("statement_text", str_replace_all, second_teacher_name, paste0(second_teacher, "_name"))
+
+```
+
+```{r}
+#| label: second-teacher-comments-pretreatment-and-merge
+#| output: true
+#| echo: false
+
+# delete rows with comments made by transcripters and that do not match my way of doing
+second_teacher_comments <- second_teacher_comments %>%
+  filter(!grepl("^name.surname@domain.org:*", Comment_1))
+
+# Here, necessary to inspect second_teacher_disc_df after the join with comments to detect any strange lines, for example line with NA that gets created if the timestamp of a comment doesn’t correspond to the beginning timestamp of a discourse
+# manually correct errors in timecode / normally not necessary
+second_teacher_comments[1,1] <- "00:05:08.860"
+
+# rename In column into timestamp
+colnames(second_teacher_comments)[colnames(second_teacher_comments) == "In"] <- "timestamp"
+
+# merge teacher and comments
+second_teacher_disc_df <- merge(second_teacher_disc_df, second_teacher_comments, by.x = "timestamp", by.y = "timestamp", all = TRUE)
+
+```
+
+```{r}
+#| label: import-end-of-intro
+#| include: false
+
+# do the import
+source("04_end_of_intro.R", local = knitr::knit_global())
+
+```
+
+# Lesson’s context
+
+Here we give a brief overview of the lesson’s context, facts and figures.
+
+## Initial variables
+
+Here are the initial variables related to the class:
+
+```{r}
+#| label: tbl-initial-variables-class-display
+#| output: true
+#| echo: false
+#| tbl-cap: "Variables associated with the class"
+#| tbl-colwidths: [30,40,30]
+
+kable(lesson_class_for_display, row.names = FALSE)
+
+```
+
+Here are the initial variables related to the lesson:
+
+```{r}
+#| label: tbl-initial-variables-lesson-display
+#| output: true
+#| echo: false
+#| tbl-cap: "Variables associated with the lesson"
+#| tbl-colwidths: [10,25,25,25,15]
+
+kable(lesson_lesson_for_display, row.names = FALSE)
+
+```
+
+Here are the initial variables related to the discourses:
+
+```{r}
+#| label: tbl-initial-variables-discourses-display
+#| output: true
+#| echo: false
+#| tbl-cap: "Variables associated with the discourses"
+#| tbl-colwidths: [30,20,20,30]
+
+kable(lesson_discourses_for_display, row.names = FALSE)
+
+```
+
+And here are the initial variables related to the teachers. Those variables have been extracted from the analysis of a survey to which the teachers answered before the lesson.
+
+```{r}
+#| label: tbl-initial-variables-teachers-display
+#| output: true
+#| echo: false
+#| tbl-cap: "Variables associated with the teachers"
+#| tbl-colwidths: [33,35,32]
+
+kable(lesson_teachers_for_display)
+
+```
+
+# Lesson teachers' classroom discourse
+
+Here is the complete transcript of the lesson teachers’ classroom discourse for lesson with ID `r this_lesson_id`. 
+
+```{r}
+#| label: lesson-display-full-discourse
+#| output: true
+#| echo: false
+#| tbl-colwidths: [15,10,68,7]
+
+# display lesson full discourse
+kable(lesson_disc_for_display[c("timestamp", "teacher_id", "statement_text", "recipient")])
+
+```
+
+# Didactical comments
+
+And here are the didactical comments we made during the transcript, focusing on misconceptions and use of notional machines by teachers.
+
+```{r}
+#| label: lesson-display-comments
+#| output: true
+#| echo: false
+#| tbl-colwidths: [15,45,10,30]
+
+# display
+kable(lesson_disc_comments_dida_df, row.names = FALSE)
+
+```
+
+# General statistics
+
+The values presented here are computed on the original unlemmatised text. Punctuation is removed from the word count and all the text is lowercased.
+
+## `r first_teacher` discourse statistics
+
+Considering the statements featured in this lesson, here are the statistics for `r first_teacher`.
+
+```{r}
+#| label: tbl-first-teacher-stats-display
+#| output: true
+#| echo: false
+#| tbl-cap: !expr 'first_teacher_stats_table_caption'
+#| tbl-colwidths: [20,15,20,15,15,15]
+
+kable(first_teacher_stats_table)
+
+```
+
+## `r second_teacher` discourse statistics
+
+Considering the statements featured in this lesson, here are the statistics for `r second_teacher`.
+
+```{r}
+#| label: tbl-second-teacher-stats-display
+#| output: true
+#| echo: false
+#| tbl-cap: !expr 'second_teacher_stats_table_caption'
+#| tbl-colwidths: [20,15,20,15,15,15]
+
+kable(second_teacher_stats_table)
+
+```
+
+## Lesson `r this_lesson_id` discourse statistics
+
+Considering the statements featured in this lesson, here are the statistics for the whole lesson `r this_lesson_id`, aggregating discourses from `r first_teacher` and `r second_teacher`.
+
+```{r}
+#| label: tbl-lesson-stats-display
+#| output: true
+#| echo: false
+#| tbl-cap: !expr 'lesson_stats_table_caption'
+#| tbl-colwidths: [20,15,20,15,15,15]
+
+kable(lesson_stats_table)
+
+```
+
+## Evolution during the lesson
+
+Here we present the distribution of the statements and vocabulary over the lesson.
+
+```{r}
+#| label: fig-plot-number-of-tokens-per-statement-by-recipient-display
+#| output: true
+#| echo: false
+#| layout-ncol: 1
+#| fig-cap: Number of words per statement over the lesson, by recipient of the statement
+#| fig-width: 12
+#| fig-height: 6
+
+tokens_per_statement_by_recipient
+
+```
+
+```{r}
+#| label: fig-plot-number-of-tokens-per-statement-by-teacher-display
+#| output: true
+#| echo: false
+#| layout-ncol: 1
+#| fig-cap: Number of words per statement over the lesson, by teacher
+#| fig-width: 12
+#| fig-height: 6
+
+tokens_per_statement_by_teacher
+
+```
+
+# Frequent lexicon
+
+```{r}
+#| label: import-splitting-lemmatisation-tokenisation-data-feature-matrix-creation
+#| include: false
+
+# do the import
+source("05_splitting_lemmatisation_tokenisation_dfm_creation.R", local = knitr::knit_global())
+
+```
+
+```{r}
+#| label: words-removal-and-submatrix-creation
+#| output: false
+#| echo: false
+
+# common stopwords list in French
+# not really useful in case we work only with verbs, nouns and adjectives…
+# stopwords_fr_common <- stopwords("fr", source = "snowball") # 164 words
+
+# words to remove during analysis
+words_removed_during_analysis <- c()
+
+# words very common to remove
+words_very_common_to_remove <- c("être", "avoir", "aller", "faire", "pouvoir", "falloir", "mettre")
+
+# stopwords_fr_common, letters and words_removed_during_analysis
+words_2b_removed <- c(words_removed_during_analysis, letters, words_very_common_to_remove #, stopwords_fr_common
+                      )
+
+# remove words from dfm → get dfm without stopwords
+dfm_segm_lemm_part <- dfm_remove(dfm_segm_lemm_part, words_2b_removed)
+
+# stats dfm without stopwords (most frequent words)
+
+# most frequent words in the dfm
+freq_lesson_disc <- textstat_frequency(dfm_segm_lemm_part)
+
+```
+
+For the following analyses, which include the most frequent words used by teachers during the lesson, we use a lemmatised version of the corpus where all forms have been reduced to their lemma. The lemmatisation process gives us for every token or word its “part-of-speech”, or POS, which is the grammatical category of the word. As there are a lot of interjections in the teachers' discourse and small words that do not bring a lot of sense to the analysis, we decide to keep only the verbs, nouns and adjectives for the following analyses. As some segments containing only interjections or small words are emptied of vocabulary, we remove them from our corpus and work with a reduced version of the corpus.
+
+The following verbs: “be”, “have”, “go”, “do”, “can”, “have to”, “put” (*“être”, “avoir”, “aller”, “faire”, “pouvoir”, “falloir”, “mettre”* in French) are very frequent in the discourse of teachers and do not bring a lot of sense to the analysis. To focus on words with more interesting meaning for our topic, we decide to remove those verbs from the corpus.
+
+Preparing Reinert's clustering that we’ll execute later on, we split all statements into segments of around 40 words, according to Reinert's method. 
+
+We obtain a data-feature matrix crossing **`r length(dfm_segm_lemm_part@Dimnames[["docs"]])` segments** and **`r length(dfm_segm_lemm_part@Dimnames[["features"]])` words**.
+
+This data-feature matrix let us compute the most frequent words used by teachers during the lesson.
+
+```{r}
+#| label: import-plot-frequencies
+#| include: false
+
+# do the import
+source("06_plot_frequencies.R", local = knitr::knit_global())
+
+```
+
+## Lesson `r this_lesson_id` discourses
+
+Here are the 50 most frequent words in the discourses of the lesson, grouping the discourses of `r first_teacher` and `r second_teacher`:
+
+```{r}
+#| label: fig-plot-frequency-lesson-discourse-display
+#| output: true
+#| echo: false
+#| layout-ncol: 1
+#| fig-cap: !expr 'plot_freq_lesson_disc_caption'
+#| fig-width: 12
+#| fig-height: 10
+
+plot_freq_lesson_disc
+
+```
+
+## `r first_teacher`
+
+Taken separately, here are the 50 most frequent words in the discourse of `r first_teacher`:
+
+```{r}
+#| label: fig-plot-frequency-first-teacher-display
+#| output: true
+#| echo: false
+#| layout-ncol: 1
+#| fig-cap: !expr 'plot_freq_first_teacher_caption'
+#| fig-width: 12
+#| fig-height: 10
+
+plot_freq_first_teacher
+
+```
+
+## `r second_teacher`
+
+Taken separately, here are the 50 most frequent words in the discourse of `r second_teacher`:
+
+```{r}
+#| label: fig-plot-frequency-second-teacher-display
+#| output: true
+#| echo: false
+#| layout-ncol: 1
+#| fig-cap: !expr 'plot_freq_second_teacher_caption'
+#| fig-width: 12
+#| fig-height: 10
+
+plot_freq_second_teacher
+
+```
+
+# Clustering
+
+```{r}
+#| label: define-biggest-clusters-names
+#| include: false
+
+# define the name of the biggest clusters after interpretation
+biggest_clusters_names <- c("", "", "", "", "")
+
+```
+
+```{r}
+#| label: import-reinert-clustering
+#| include: false
+
+# do the import
+source("07_reinert_clustering.R", local = knitr::knit_global())
+
+```
+
+Using the data-feature matrix created earlier, we remove the documents that contain less than three words and the words that appear in less than 3 documents.
+
+The resulting data-feature matrix crosses **`r length(dfm_segm_lemm_part@Dimnames[["docs"]])` segments** and **`r length(dfm_segm_lemm_part@Dimnames[["features"]])` words**.
+
+Here are the first six rows and 12 columns of the data-feature matrix:
+
+```{r}
+#| label: tbl-feature-matrix-head-display
+#| output: true
+#| echo: false
+#| tbl-cap: Data-feature matrix first lines and columns
+
+kable(head(convert(dfm_segm_lemm_part, to = "data.frame")[ , 1:12]))
+
+```
+
+Each segment is associated with **`r ncol(docvars(dfm_segm_lemm_part))` variables** that we will use later in the analyses.
+
+We perform a simple Reinert's clustering with **`r number_of_lesson_clusters` clusters**, a minimum segment size of 15 and a minimum cluster size of 8.
+
+## Most important clusters
+
+The **`r cluster_nbr_for_interpretation` biggest clusters**, ordered by descending number of segments they contain, are the following:
+
+`r biggest_clusters`
+
+\newpage
+\blandscape
+
+```{r}
+#| label: fig-display-clustering
+#| output: true
+#| echo: false
+#| fig-cap: "Dendrogram of clusters produced by Reinert's Clustering"
+
+# plot dendrogram invisible() makes
+invisible(plot_dendrogram())
+
+```
+
+\elandscape
+
+We can look at the size of the clusters in terms of segments.
+
+```{r}
+#| label: fig-display-statistics-for-clusters
+#| output: true
+#| echo: false
+#| fig-cap: "Plot of the number of segments per cluster"
+#| fig-width: 12
+#| fig-height: 6
+
+clusters_size_in_segments
+  
+```
+
+### Cluster `r biggest_clusters[1]` (containing `r cluster_nb_of_segments[[1]]` segments) `r if(clusters_renamed_yes) paste0("--- ", biggest_clusters_names[1]) else ""`
+
+#### Tokens
+
+`r features_in_lesson_clusters[[biggest_clusters[1]]]$feature` 
+
+```{r}
+#| label: data-for-first-cluster-interpretation
+#| include: false
+
+cat(biggest_clusters_llm_requests[[1]])
+
+```
+
+```{r}
+#| label: fig-tokens-in-first-cluster-display
+#| output: true
+#| echo: false
+#| fig-cap: !expr 'biggest_clusters_captions[[1]]'
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 10
+
+# display table if we prefer than plot
+# as.data.frame(features_in_lesson_clusters[[biggest_clusters[1]]])
+
+first_cluster_keyness <- textstat_keyness(dfm_segm_lemm_part_wo_na, target = dfm_segm_lemm_part_wo_na$lesson_cluster_id == biggest_clusters[1])
+textplot_keyness(first_cluster_keyness, show_legend = TRUE, show_reference = TRUE, n = 20)
+
+```
+
+#### Interpretation
+
+TBD
+
+### Cluster `r biggest_clusters[2]` (containing `r cluster_nb_of_segments[[2]]` segments) `r if(clusters_renamed_yes) paste0("--- ", biggest_clusters_names[2]) else ""`
+
+#### Tokens
+
+`r features_in_lesson_clusters[[biggest_clusters[2]]]$feature`
+
+```{r}
+#| label: data-for-second-cluster-interpretation
+#| include: false
+
+cat(biggest_clusters_llm_requests[[2]])
+
+```
+
+```{r}
+#| label: fig-tokens-in-second-cluster-display
+#| output: true
+#| echo: false
+#| fig-cap: !expr 'biggest_clusters_captions[[2]]'
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 10
+
+# as.data.frame(features_in_lesson_clusters[[biggest_clusters[2]]])
+
+second_cluster_keyness <- textstat_keyness(dfm_segm_lemm_part_wo_na, target = dfm_segm_lemm_part_wo_na$lesson_cluster_id == biggest_clusters[2])
+textplot_keyness(second_cluster_keyness, show_legend = TRUE, show_reference = TRUE, n = 20)
+
+```
+
+#### Interpretation
+
+TBD
+
+### Cluster `r biggest_clusters[3]` (containing `r cluster_nb_of_segments[[3]]` segments) `r if(clusters_renamed_yes) paste0("--- ", biggest_clusters_names[3]) else ""`
+
+#### Tokens
+
+`r features_in_lesson_clusters[[biggest_clusters[3]]]$feature`
+
+```{r}
+#| label: data-for-third-cluster-interpretation
+#| include: false
+
+cat(biggest_clusters_llm_requests[[3]])
+
+```
+
+```{r}
+#| label: fig-tokens-in-third-cluster-display
+#| output: true
+#| echo: false
+#| fig-cap: !expr 'biggest_clusters_captions[[3]]'
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 10
+
+# as.data.frame(features_in_lesson_clusters[[biggest_clusters[3]]])
+
+third_cluster_keyness <- textstat_keyness(dfm_segm_lemm_part_wo_na, target = dfm_segm_lemm_part_wo_na$lesson_cluster_id == biggest_clusters[3])
+textplot_keyness(third_cluster_keyness, show_legend = TRUE, show_reference = TRUE, n = 20)
+
+```
+
+#### Interpretation
+
+TBD
+
+### Cluster `r biggest_clusters[4]` (containing `r cluster_nb_of_segments[[4]]` segments) `r if(clusters_renamed_yes) paste0("--- ", biggest_clusters_names[4]) else ""`
+
+#### Tokens
+
+`r features_in_lesson_clusters[[biggest_clusters[4]]]$feature`
+
+```{r}
+#| label: data-for-fourth-cluster-interpretation
+#| include: false
+
+cat(biggest_clusters_llm_requests[[4]])
+
+```
+
+```{r}
+#| label: fig-tokens-in-fourth-cluster-display
+#| output: true
+#| echo: false
+#| fig-cap: !expr 'biggest_clusters_captions[[4]]'
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 10
+
+# as.data.frame(features_in_lesson_clusters[[biggest_clusters[4]]])
+
+fourth_cluster_keyness <- textstat_keyness(dfm_segm_lemm_part_wo_na, target = dfm_segm_lemm_part_wo_na$lesson_cluster_id == biggest_clusters[4])
+textplot_keyness(fourth_cluster_keyness, show_legend = TRUE, show_reference = TRUE, n = 20)
+
+```
+
+#### Interpretation
+
+TBD
+
+### Cluster `r biggest_clusters[5]` (containing `r cluster_nb_of_segments[[5]]` segments) `r if(clusters_renamed_yes) paste0("--- ", biggest_clusters_names[5]) else ""`
+
+#### Tokens
+
+`r features_in_lesson_clusters[[biggest_clusters[5]]]$feature`
+
+```{r}
+#| label: data-for-fifth-cluster-interpretation
+#| include: false
+
+cat(biggest_clusters_llm_requests[[5]])
+
+```
+
+```{r}
+#| label: fig-tokens-in-fifth-cluster-display
+#| output: true
+#| echo: false
+#| fig-cap: !expr 'biggest_clusters_captions[[5]]'
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 10
+
+# as.data.frame(features_in_lesson_clusters[[biggest_clusters[5]]])
+
+fifth_cluster_keyness <- textstat_keyness(dfm_segm_lemm_part_wo_na, target = dfm_segm_lemm_part_wo_na$lesson_cluster_id == biggest_clusters[5])
+textplot_keyness(fifth_cluster_keyness, show_legend = TRUE, show_reference = TRUE, n = 20)
+
+```
+
+#### Interpretation
+
+TBD
+
+## Evolution of clusters during the lesson
+
+Once the segments have been associated with different clusters, we can look at the evolution of the clusters during the lesson.
+
+```{r}
+#| label: fig-evolution-of-clusters-during-lesson
+#| output: true
+#| echo: false
+#| fig-cap: Clusters repartition during the lesson
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 10
+
+plot_evolution_of_clusters
+
+```
+
+# Correspondence Analysis
+
+```{r}
+#| label: import-alt-creation-and-ca
+#| include: false
+
+# do the import
+source("08_alt_creation_and_ca.R", local = knitr::knit_global())
+
+```
+
+After having performed Reinert's clustering, we execute a Correspondence Analysis (CA) to explore the relationships between some of the variables associated with the lexicon.
+
+A contigency table is constituted as an Aggregated Lexical Table (ALT) where the rows represent the words and the columns the different modalities of the variables associated with the segments. It is composed of **`r nrow(tableau_lexical_questions)` words** and **`r ncol(tableau_lexical_questions)` modalities of categorical variables**.
+
+Each cell of the table contains the number of segments containing a word and associated to a category of a variable.
+
+Here is an extract of the first six rows and 9 columns of the Aggregated Lexical Table (ALT) used for the CA:
+
+```{r}
+#| label: tbl-aggregated-lexical-table-head-display
+#| output: true
+#| echo: false
+#| tbl-cap: Aggregated Lexical Table (ALT) first lines and columns
+
+kable(head(tableau_lexical_questions)[ , 1:9])
+
+```
+
+The modalities of the variables are the following: 
+
+- teacher_id: *`r colnames(tableau_lexical_questions)[1:2]`*
+- recipient: *`r colnames(tableau_lexical_questions)[3:5]`*
+- time_slice: *`r colnames(tableau_lexical_questions)[6:14]`*
+- cluster_id: *`r colnames(tableau_lexical_questions)[15:20]`*
+
+```{r}
+#| label: fig-display-plot-eigenvalues
+#| output: true
+#| echo: false
+#| fig-cap: "Eigenvalues of the Correspondence Analysis"
+#| fig-width: 12
+#| fig-height: 6
+
+ca_alt_screeplot
+
+```
+
+\newpage
+\blandscape
+
+```{r}
+#| label: fig-display-mca
+#| output: true
+#| echo: false
+#| fig-cap: "Axes 1 and 2 of the Correspondence Analysis"
+#| fig-width: 12
+#| fig-height: 10
+
+plot_ca_lesson_disc
+
+```
+
+\elandscape
+
+Here are the elements most associated with dimensions 1 and 2 of the CA. The elements are ordered by decreasing cos2 values.
+
+```{r}
+#| label: tbl-contrib-cos2-coord-dim1-display
+#| output: true
+#| echo: false
+#| tbl-cap: "Axis 1 --- 30 elements with highest cos2"
+#| tbl-colwidths: [40,40,40]
+
+kable(table_ca_lesson_disc_dim1_extract)
+
+```
+
+```{r}
+#| label: tbl-contrib-cos2-coord-dim2-display
+#| output: true
+#| echo: false
+#| tbl-cap: "Axis 2 --- 30 elements with highest cos2"
+#| tbl-colwidths: [40,40,40]
+
+kable(table_ca_lesson_disc_dim2_extract)
+
+```
+
+```{r}
+#| label: export-corpus-and-tokens-for-global-analysis
+#| include: false
+
+# do the import
+source("09_export.R", local = knitr::knit_global())
+
+```
